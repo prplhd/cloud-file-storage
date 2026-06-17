@@ -1,10 +1,12 @@
 package com.prplhd.cloudfilestorage.dao;
 
+import com.prplhd.cloudfilestorage.entity.UserEntity;
+
 import java.util.Optional;
 
-public interface UserDao<ID, E> {
+public interface UserDao {
 
-    public Optional<E> findByUsername(String username);
+    public Optional<UserEntity> findByUsername(String username);
 
-    public E save(E entity);
+    public UserEntity save(UserEntity entity);
 }

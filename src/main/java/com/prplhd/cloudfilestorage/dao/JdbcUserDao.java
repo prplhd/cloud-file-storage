@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @RequiredArgsConstructor
 @Repository
-public class JdbcUserDao implements UserDao<Long, UserEntity> {
+public class JdbcUserDao implements UserDao {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
