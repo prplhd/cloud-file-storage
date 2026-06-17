@@ -2,7 +2,6 @@ package com.prplhd.cloudfilestorage.security;
 
 import com.prplhd.cloudfilestorage.dao.UserDao;
 import com.prplhd.cloudfilestorage.entity.UserEntity;
-import com.prplhd.cloudfilestorage.exception.InvalidCredentialsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
