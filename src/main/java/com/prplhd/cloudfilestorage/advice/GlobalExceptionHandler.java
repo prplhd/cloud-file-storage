@@ -31,4 +31,11 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(errorResponseDto, HttpStatus.UNAUTHORIZED);
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponseDto> handleException(Exception e) {
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto("Internal server error. Please try again later");
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

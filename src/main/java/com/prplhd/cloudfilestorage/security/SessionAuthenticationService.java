@@ -10,6 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ public class SessionAuthenticationService {
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final SecurityContextLogoutHandler securityContextLogoutHandler;
 
     public Authentication authenticateAndCreateSession(String username,
                                                        String password,
@@ -42,5 +44,12 @@ public class SessionAuthenticationService {
         securityContextRepository.saveContext(securityContext, request, response);
 
         return authentication;
+    }
+
+    public void logoutAndInvalidateSession(HttpServletRequest request,
+                                           HttpServletResponse response,
+                                           Authentication authentication
+    ) {
+        securityContextLogoutHandler.logout(request, response, authentication);
     }
 }

@@ -68,4 +68,14 @@ public class AuthController {
 
         return ResponseEntity.ok(userResponseDto);
     }
+
+    @PostMapping("/sign-out")
+    public ResponseEntity<Void> signOut(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    Authentication authentication
+    ) {
+        sessionAuthenticationService.logoutAndInvalidateSession(request, response, authentication);
+
+        return ResponseEntity.noContent().build();
+    }
 }
