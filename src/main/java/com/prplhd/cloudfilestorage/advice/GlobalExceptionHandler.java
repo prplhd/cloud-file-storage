@@ -2,6 +2,7 @@ package com.prplhd.cloudfilestorage.advice;
 
 import com.prplhd.cloudfilestorage.dto.ErrorResponseDto;
 import com.prplhd.cloudfilestorage.exception.InvalidCredentialsException;
+import com.prplhd.cloudfilestorage.exception.UserAlreadyExistsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.ObjectError;
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler {
         ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
 
         return new ResponseEntity<>(errorResponseDto, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponseDto> handleUserAlreadyExistsException(UserAlreadyExistsException e) {
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(Exception.class)
