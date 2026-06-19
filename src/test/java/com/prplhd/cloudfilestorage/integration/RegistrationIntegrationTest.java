@@ -31,6 +31,8 @@ class RegistrationIntegrationTest {
     private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
     private static final String REGISTRATION_URL = "/api/auth/sign-up";
+    private static final String VALID_USERNAME = "username";
+    private static final String VALID_PASSWORD = "password";
 
     @Autowired
     private MockMvc mockMvc;
@@ -50,9 +52,9 @@ class RegistrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Creates a user when registering with valid credentials")
+    @DisplayName("Returns 201 and creates a user when registering with valid credentials")
     void whenUserRegisters_withValidCredentials_thenUserIsCreated() throws Exception {
-        SignUpRequestDto requestDto = new SignUpRequestDto("username", "password");
+        SignUpRequestDto requestDto = new SignUpRequestDto(VALID_USERNAME, VALID_PASSWORD);
         String json = objectMapper.writeValueAsString(requestDto);
 
         mockMvc.perform(
@@ -70,7 +72,7 @@ class RegistrationIntegrationTest {
     @Test
     @DisplayName("Returns 409 when registering with a duplicate username")
     void whenUserRegisters_withDuplicateUsername_thenReturnsConflict() throws Exception {
-        SignUpRequestDto requestDto = new SignUpRequestDto("username", "password");
+        SignUpRequestDto requestDto = new SignUpRequestDto(VALID_USERNAME, VALID_PASSWORD);
         String json = objectMapper.writeValueAsString(requestDto);
 
         mockMvc.perform(
@@ -84,7 +86,7 @@ class RegistrationIntegrationTest {
 
         assertThat(userDao.findByUsername(requestDto.username())).isPresent();
 
-        SignUpRequestDto requestDtoWithDuplicateUsername = new SignUpRequestDto("username", "anotherPass");
+        SignUpRequestDto requestDtoWithDuplicateUsername = new SignUpRequestDto(VALID_USERNAME, "anotherPass");
         String jsonWithDuplicateUsername = objectMapper.writeValueAsString(requestDtoWithDuplicateUsername);
 
 
@@ -110,4 +112,35 @@ class RegistrationIntegrationTest {
         assertThat(usersWithSameUsernameCount).isEqualTo(1L);
     }
 
+    @Test
+    @DisplayName("Returns 400 when registering with invalid credentials")
+    void whenUserRegisters_withInvalidCredentials_thenReturnsBadRequest() throws Exception {
+        SignUpRequestDto requestDtoWithInvalidLogin = new SignUpRequestDto("u1", VALID_PASSWORD);
+        String jsonWithInvalidLogin = objectMapper.writeValueAsString(requestDtoWithInvalidLogin);
+
+        mockMvc.perform(
+                        post(REGISTRATION_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(jsonWithInvalidLogin)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(userDao.findByUsername(requestDtoWithInvalidLogin.username())).isNotPresent();
+
+        SignUpRequestDto requestDtoWithInvalidPassword = new SignUpRequestDto(VALID_USERNAME, "))");
+        String jsonWithInvalidPassword = objectMapper.writeValueAsString(requestDtoWithInvalidPassword);
+
+        mockMvc.perform(
+                        post(REGISTRATION_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(jsonWithInvalidPassword)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").isNotEmpty());
+
+        assertThat(userDao.findByUsername(requestDtoWithInvalidPassword.username())).isNotPresent();
+    }
 }
