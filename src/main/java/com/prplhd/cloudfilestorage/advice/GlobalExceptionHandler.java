@@ -3,6 +3,7 @@ package com.prplhd.cloudfilestorage.advice;
 import com.prplhd.cloudfilestorage.dto.ErrorResponseDto;
 import com.prplhd.cloudfilestorage.exception.InvalidCredentialsException;
 import com.prplhd.cloudfilestorage.exception.UserAlreadyExistsException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.ObjectError;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -42,6 +44,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleException(Exception e) {
+        log.error("Unhandled exception", e);
+
         ErrorResponseDto errorResponseDto = new ErrorResponseDto("Internal server error. Please try again later");
 
         return new ResponseEntity<>(errorResponseDto, HttpStatus.INTERNAL_SERVER_ERROR);
