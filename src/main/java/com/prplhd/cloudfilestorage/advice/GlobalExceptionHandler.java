@@ -2,6 +2,8 @@ package com.prplhd.cloudfilestorage.advice;
 
 import com.prplhd.cloudfilestorage.dto.ErrorResponseDto;
 import com.prplhd.cloudfilestorage.exception.InvalidCredentialsException;
+import com.prplhd.cloudfilestorage.exception.MinioStorageException;
+import com.prplhd.cloudfilestorage.exception.ResourceNotFoundException;
 import com.prplhd.cloudfilestorage.exception.UserAlreadyExistsException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -35,11 +37,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponseDto, HttpStatus.UNAUTHORIZED);
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleResourceNotFoundException(ResourceNotFoundException e) {
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.NOT_FOUND);    }
+
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ErrorResponseDto> handleUserAlreadyExistsException(UserAlreadyExistsException e) {
         ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
 
         return new ResponseEntity<>(errorResponseDto, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(MinioStorageException.class)
+    public ResponseEntity<ErrorResponseDto> handleMinioStorageException(MinioStorageException e) {
+        log.error("MinIO storage operation failed", e);
+
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto("Internal server error. Please try again later");
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(Exception.class)

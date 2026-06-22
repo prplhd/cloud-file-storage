@@ -27,4 +27,8 @@ public class UserPrincipal implements UserDetails {
     public String getUsername() {
         return user.username();
     }
+
+    public Long getId() {
+        return user.id();
+    }
 }
