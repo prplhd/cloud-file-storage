@@ -5,15 +5,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class ResourcePathResolver {
 
-    private static final String USER_ROOT_PREFIX_TEMPLATE = "user-%d-files/";
-
-    public ResolvedResourcePath resolve(Long userId, String path) {
+    public ResolvedResourcePath resolve(String path) {
         String parentPath = resolveParentPath(path);
         String resourceName = resolveResourceName(path, parentPath);
         ResourceType resourceType = resolveResourceType(path);
-        String objectKey = resolveObjectKey(userId, path);
 
-        return new ResolvedResourcePath(parentPath, resourceName, resourceType, objectKey);
+        return new ResolvedResourcePath(parentPath, resourceName, resourceType);
     }
 
     private String resolveParentPath(String path) {
@@ -48,9 +45,5 @@ public class ResourcePathResolver {
         }
 
         return ResourceType.FILE;
-    }
-
-    private String resolveObjectKey(Long userId, String path) {
-        return USER_ROOT_PREFIX_TEMPLATE.formatted(userId) + path;
     }
 }

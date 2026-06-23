@@ -1,10 +1,7 @@
 package com.prplhd.cloudfilestorage.advice;
 
 import com.prplhd.cloudfilestorage.dto.ErrorResponseDto;
-import com.prplhd.cloudfilestorage.exception.InvalidCredentialsException;
-import com.prplhd.cloudfilestorage.exception.MinioStorageException;
-import com.prplhd.cloudfilestorage.exception.ResourceNotFoundException;
-import com.prplhd.cloudfilestorage.exception.UserAlreadyExistsException;
+import com.prplhd.cloudfilestorage.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +27,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponseDto, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ErrorResponseDto> handleInvalidRequestException(InvalidRequestException e) {
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponseDto> handleInvalidCredentialsException(InvalidCredentialsException e) {
         ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
@@ -45,6 +49,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ErrorResponseDto> handleUserAlreadyExistsException(UserAlreadyExistsException e) {
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(ResourceAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponseDto> handleResourceAlreadyExistsException(ResourceAlreadyExistsException e) {
         ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
 
         return new ResponseEntity<>(errorResponseDto, HttpStatus.CONFLICT);
