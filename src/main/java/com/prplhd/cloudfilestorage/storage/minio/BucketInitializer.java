@@ -1,4 +1,4 @@
-package com.prplhd.cloudfilestorage.minio;
+package com.prplhd.cloudfilestorage.storage.minio;
 
 import com.prplhd.cloudfilestorage.exception.MinioInitializationException;
 import io.minio.BucketExistsArgs;

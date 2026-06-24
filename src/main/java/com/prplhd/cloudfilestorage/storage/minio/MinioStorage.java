@@ -1,8 +1,9 @@
-package com.prplhd.cloudfilestorage.minio;
+package com.prplhd.cloudfilestorage.storage.minio;
 
 import com.prplhd.cloudfilestorage.exception.MinioStorageException;
 import com.prplhd.cloudfilestorage.exception.ResourceAlreadyExistsException;
 import com.prplhd.cloudfilestorage.exception.ResourceNotFoundException;
+import com.prplhd.cloudfilestorage.storage.Storage;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.StatObjectArgs;
@@ -20,7 +21,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class MinioStorage {
+public class MinioStorage implements Storage {
 
     private static final String USER_ROOT_PREFIX_TEMPLATE = "user-%d-files/";
     private static final String RESOURCE_NOT_FOUND_CODE = "NoSuchKey";

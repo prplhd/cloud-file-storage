@@ -3,10 +3,10 @@ package com.prplhd.cloudfilestorage.service;
 import com.prplhd.cloudfilestorage.dto.resource.ResourceResponseDto;
 import com.prplhd.cloudfilestorage.exception.InvalidRequestException;
 import com.prplhd.cloudfilestorage.mapper.ResourceResponseMapper;
-import com.prplhd.cloudfilestorage.minio.MinioStorage;
-import com.prplhd.cloudfilestorage.minio.ResolvedResourcePath;
-import com.prplhd.cloudfilestorage.minio.ResourcePathResolver;
-import com.prplhd.cloudfilestorage.minio.ResourceType;
+import com.prplhd.cloudfilestorage.storage.Storage;
+import com.prplhd.cloudfilestorage.storage.pathresolver.ResolvedResourcePath;
+import com.prplhd.cloudfilestorage.storage.pathresolver.ResourcePathResolver;
+import com.prplhd.cloudfilestorage.storage.pathresolver.ResourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,14 +20,13 @@ import java.util.regex.Pattern;
 public class ResourceService {
     private static final Pattern FILE_NAME_PATTERN = Pattern.compile("^(?!/)(?!.*//).+(?<!/)$");
 
-    private final MinioStorage minioStorage;
-    private final ResourcePathResolver resourcePathResolver;
+    private final Storage storage;
     private final ResourceResponseMapper resourceResponseMapper;
 
     public ResourceResponseDto getResourceInfo(Long userId, String path) {
-        ResolvedResourcePath resolvedPath = resourcePathResolver.resolve(path);
+        ResolvedResourcePath resolvedPath = ResourcePathResolver.resolve(path);
 
-        Long resourceSize = minioStorage.getResourceSize(userId, path);
+        Long resourceSize = storage.getResourceSize(userId, path);
 
         if (resolvedPath.resourceType() == ResourceType.DIRECTORY) {
             resourceSize = null;
@@ -45,9 +44,9 @@ public class ResourceService {
 
         for (MultipartFile file : files) {
             String resourceFullPath = path + file.getOriginalFilename();
-            ResolvedResourcePath resolvedPath = resourcePathResolver.resolve(resourceFullPath);
+            ResolvedResourcePath resolvedPath = ResourcePathResolver.resolve(resourceFullPath);
 
-            minioStorage.uploadResource(userId, resourceFullPath, file);
+            storage.uploadResource(userId, resourceFullPath, file);
             uploadedResources.add(resourceResponseMapper.toDto(resolvedPath, file.getSize()));
         }
 

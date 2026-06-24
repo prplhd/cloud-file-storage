@@ -1,7 +1,7 @@
 package com.prplhd.cloudfilestorage.mapper;
 
 import com.prplhd.cloudfilestorage.dto.resource.ResourceResponseDto;
-import com.prplhd.cloudfilestorage.minio.ResolvedResourcePath;
+import com.prplhd.cloudfilestorage.storage.pathresolver.ResolvedResourcePath;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

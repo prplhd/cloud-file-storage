@@ -1,11 +1,10 @@
-package com.prplhd.cloudfilestorage.minio;
+package com.prplhd.cloudfilestorage.storage.pathresolver;
 
-import org.springframework.stereotype.Component;
+public final class ResourcePathResolver {
 
-@Component
-public class ResourcePathResolver {
+    private ResourcePathResolver() {}
 
-    public ResolvedResourcePath resolve(String path) {
+    public static ResolvedResourcePath resolve(String path) {
         String parentPath = resolveParentPath(path);
         String resourceName = resolveResourceName(path, parentPath);
         ResourceType resourceType = resolveResourceType(path);
@@ -13,7 +12,7 @@ public class ResourcePathResolver {
         return new ResolvedResourcePath(parentPath, resourceName, resourceType);
     }
 
-    private String resolveParentPath(String path) {
+    private static String resolveParentPath(String path) {
         String normalizedPath;
 
         if (path.endsWith("/")) {
@@ -27,7 +26,7 @@ public class ResourcePathResolver {
         return normalizedPath.substring(0, lastSlashIndex + 1);
     }
 
-    private String resolveResourceName(String path, String parentPath) {
+    private static String resolveResourceName(String path, String parentPath) {
         int parentPathLength = parentPath.length();
 
         String resourceName = path.substring(parentPathLength);
@@ -39,7 +38,7 @@ public class ResourcePathResolver {
         return resourceName;
     }
 
-    private ResourceType resolveResourceType(String path) {
+    private static ResourceType resolveResourceType(String path) {
         if (path.endsWith("/")) {
             return ResourceType.DIRECTORY;
         }
