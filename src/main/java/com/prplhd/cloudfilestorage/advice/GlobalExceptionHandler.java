@@ -34,6 +34,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponseDto, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDto> handleIllegalArgumentException(IllegalArgumentException e) {
+        ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
+
+        return new ResponseEntity<>(errorResponseDto, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponseDto> handleInvalidCredentialsException(InvalidCredentialsException e) {
         ErrorResponseDto errorResponseDto = new ErrorResponseDto(e.getMessage());
@@ -61,9 +68,9 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponseDto, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler(MinioStorageException.class)
-    public ResponseEntity<ErrorResponseDto> handleMinioStorageException(MinioStorageException e) {
-        log.error("MinIO storage operation failed", e);
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorResponseDto> handleMinioStorageException(StorageException e) {
+        log.error("Storage operation failed", e);
 
         ErrorResponseDto errorResponseDto = new ErrorResponseDto("Internal server error. Please try again later");
 

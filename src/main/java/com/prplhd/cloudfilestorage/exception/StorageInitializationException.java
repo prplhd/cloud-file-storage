@@ -1,0 +1,7 @@
+package com.prplhd.cloudfilestorage.exception;
+
+public class StorageInitializationException extends RuntimeException {
+    public StorageInitializationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

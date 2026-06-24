@@ -1,7 +1,7 @@
 package com.prplhd.cloudfilestorage.dto.resource;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.prplhd.cloudfilestorage.storage.pathresolver.ResourceType;
+import com.prplhd.cloudfilestorage.domain.ResourceType;
 
 public record ResourceResponseDto(
         String path,

@@ -1,12 +1,11 @@
 package com.prplhd.cloudfilestorage.service;
 
+import com.prplhd.cloudfilestorage.domain.ResourcePath;
+import com.prplhd.cloudfilestorage.domain.StorageResource;
 import com.prplhd.cloudfilestorage.dto.resource.ResourceResponseDto;
 import com.prplhd.cloudfilestorage.exception.InvalidRequestException;
 import com.prplhd.cloudfilestorage.mapper.ResourceResponseMapper;
 import com.prplhd.cloudfilestorage.storage.Storage;
-import com.prplhd.cloudfilestorage.storage.pathresolver.ResolvedResourcePath;
-import com.prplhd.cloudfilestorage.storage.pathresolver.ResourcePathResolver;
-import com.prplhd.cloudfilestorage.storage.pathresolver.ResourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,15 +23,13 @@ public class ResourceService {
     private final ResourceResponseMapper resourceResponseMapper;
 
     public ResourceResponseDto getResourceInfo(Long userId, String path) {
-        ResolvedResourcePath resolvedPath = ResourcePathResolver.resolve(path);
+        ResourcePath resourcePath = new ResourcePath(path);
 
-        Long resourceSize = storage.getResourceSize(userId, path);
+        Long resourceSize = storage.getResourceSize(userId, resourcePath);
 
-        if (resolvedPath.resourceType() == ResourceType.DIRECTORY) {
-            resourceSize = null;
-        }
+        StorageResource resource = new StorageResource(resourcePath, resourceSize);
 
-        return resourceResponseMapper.toDto(resolvedPath, resourceSize);
+        return resourceResponseMapper.toDto(resource);
     }
 
     public List<ResourceResponseDto> uploadResources(Long userId, String path, List<MultipartFile> files) {
@@ -44,10 +41,12 @@ public class ResourceService {
 
         for (MultipartFile file : files) {
             String resourceFullPath = path + file.getOriginalFilename();
-            ResolvedResourcePath resolvedPath = ResourcePathResolver.resolve(resourceFullPath);
+            ResourcePath resourcePath = new ResourcePath(resourceFullPath);
 
-            storage.uploadResource(userId, resourceFullPath, file);
-            uploadedResources.add(resourceResponseMapper.toDto(resolvedPath, file.getSize()));
+            storage.uploadResource(userId, resourcePath, file);
+
+            StorageResource resource = new StorageResource(resourcePath, file.getSize());
+            uploadedResources.add(resourceResponseMapper.toDto(resource));
         }
 
         return uploadedResources;

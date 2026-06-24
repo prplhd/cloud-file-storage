@@ -1,6 +1,6 @@
 package com.prplhd.cloudfilestorage.storage.minio;
 
-import com.prplhd.cloudfilestorage.exception.MinioInitializationException;
+import com.prplhd.cloudfilestorage.exception.StorageInitializationException;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -41,7 +41,7 @@ public class BucketInitializer implements ApplicationRunner {
         } catch (MinioException e) {
             log.error("Failed to initialize MinIO bucket {}", bucketName, e);
 
-            throw new MinioInitializationException("Failed to initialize storage bucket '" + bucketName + "'", e);
+            throw new StorageInitializationException("Failed to initialize storage bucket '" + bucketName + "'", e);
         }
     }
 }
