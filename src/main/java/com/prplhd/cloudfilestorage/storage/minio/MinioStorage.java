@@ -1,9 +1,10 @@
 package com.prplhd.cloudfilestorage.storage.minio;
 
 import com.prplhd.cloudfilestorage.domain.ResourcePath;
-import com.prplhd.cloudfilestorage.exception.StorageException;
+import com.prplhd.cloudfilestorage.domain.ResourceType;
 import com.prplhd.cloudfilestorage.exception.ResourceAlreadyExistsException;
 import com.prplhd.cloudfilestorage.exception.ResourceNotFoundException;
+import com.prplhd.cloudfilestorage.exception.StorageException;
 import com.prplhd.cloudfilestorage.storage.Storage;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -16,8 +17,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -59,16 +62,21 @@ public class MinioStorage implements Storage {
         }
     }
 
-    public void uploadResource(Long userId, ResourcePath resourcePath, MultipartFile file) {
+    public void uploadFile(Long userId, ResourcePath resourcePath, MultipartFile file) {
+        if (resourcePath.getType() == ResourceType.DIRECTORY) {
+            throw new IllegalArgumentException("Resource path must point to a file");
+        }
+
         String fullPath = resourcePath.getFullPath();
         String objectKey = resolveObjectKey(userId, fullPath);
-
         long fileSize = file.getSize();
         String contentType = file.getContentType();
 
         if (contentType == null || contentType.isBlank()) {
             contentType = "application/octet-stream";
         }
+
+        createMissingParentDirectories(userId, resourcePath.getParentDirectories());
 
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(
@@ -90,6 +98,36 @@ public class MinioStorage implements Storage {
 
         } catch (IOException | MinioException e) {
             throw new StorageException("Failed to upload resource for path '%s'".formatted(fullPath), e);
+        }
+    }
+
+    public void createDirectory(Long userId, ResourcePath resourcePath) {
+        //TODO
+    }
+
+    private void createMissingParentDirectories(Long userId, List<String> parentDirectories) {
+        for (String parentDirectory : parentDirectories) {
+            String objectKey = resolveObjectKey(userId, parentDirectory);
+
+            try {
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(objectKey)
+                                .stream( new ByteArrayInputStream(new byte[] {}), 0L, -1L)
+                                .extraHeaders(Map.of("If-None-Match", "*"))
+                                .build()
+                );
+            }  catch (ErrorResponseException e) {
+                if (PRECONDITION_FAILED_CODE.equals(e.errorResponse().code())) {
+                    continue;
+                }
+
+                throw new StorageException("Failed to create parent directory for path '%s'".formatted(parentDirectory), e);
+
+            } catch (MinioException e) {
+                throw new StorageException("Failed to create parent directory for path '%s'".formatted(parentDirectory), e);
+            }
         }
     }
 

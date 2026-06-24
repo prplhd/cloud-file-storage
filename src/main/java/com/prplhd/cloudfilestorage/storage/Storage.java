@@ -7,5 +7,5 @@ public interface Storage {
 
     public Long getResourceSize(Long userId, ResourcePath path);
 
-    public void uploadResource(Long userId, ResourcePath resourcePath, MultipartFile file);
+    public void uploadFile(Long userId, ResourcePath resourcePath, MultipartFile file);
 }

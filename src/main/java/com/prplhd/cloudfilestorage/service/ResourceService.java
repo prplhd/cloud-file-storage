@@ -43,7 +43,7 @@ public class ResourceService {
             String resourceFullPath = path + file.getOriginalFilename();
             ResourcePath resourcePath = new ResourcePath(resourceFullPath);
 
-            storage.uploadResource(userId, resourcePath, file);
+            storage.uploadFile(userId, resourcePath, file);
 
             StorageResource resource = new StorageResource(resourcePath, file.getSize());
             uploadedResources.add(resourceResponseMapper.toDto(resource));
