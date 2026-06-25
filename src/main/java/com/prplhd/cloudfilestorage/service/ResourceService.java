@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class ResourceService {
     private static final Pattern FILE_NAME_PATTERN = Pattern.compile("^(?!/)(?!.*//).+(?<!/)$");
+    private static final Pattern DIRECTORY_NAME_PATTERN = Pattern.compile("^[^/]+$");
 
     private final Storage storage;
     private final ResourceResponseMapper resourceResponseMapper;
@@ -25,9 +26,7 @@ public class ResourceService {
     public ResourceResponseDto getResourceInfo(Long userId, String path) {
         ResourcePath resourcePath = new ResourcePath(path);
 
-        Long resourceSize = storage.getResourceSize(userId, resourcePath);
-
-        StorageResource resource = new StorageResource(resourcePath, resourceSize);
+        StorageResource resource = storage.getResourceInfo(userId, resourcePath);
 
         return resourceResponseMapper.toDto(resource);
     }
@@ -43,13 +42,30 @@ public class ResourceService {
             String resourceFullPath = path + file.getOriginalFilename();
             ResourcePath resourcePath = new ResourcePath(resourceFullPath);
 
-            storage.uploadFile(userId, resourcePath, file);
+            StorageResource resource = storage.uploadFile(userId, resourcePath, file);
 
-            StorageResource resource = new StorageResource(resourcePath, file.getSize());
             uploadedResources.add(resourceResponseMapper.toDto(resource));
         }
 
         return uploadedResources;
+    }
+
+    public List<ResourceResponseDto> getDirectoryContents(Long userId, String path) {
+        ResourcePath resourcePath = new ResourcePath(path);
+        validateDirectoryName(resourcePath.getName());
+
+        List<StorageResource> resources = storage.getDirectoryContents(userId, resourcePath);
+
+        return resources.stream().map(resourceResponseMapper::toDto).toList();
+    }
+
+    public ResourceResponseDto createDirectory(Long userId, String path) {
+        ResourcePath resourcePath = new ResourcePath(path);
+        validateDirectoryName(resourcePath.getName());
+
+        StorageResource resource = storage.createDirectory(userId, resourcePath);
+
+        return resourceResponseMapper.toDto(resource);
     }
 
     private void validateFileName(String name) {
@@ -59,6 +75,16 @@ public class ResourceService {
 
         if (!FILE_NAME_PATTERN.matcher(name).matches()) {
             throw new InvalidRequestException("File path must not start or end with '/' and must not contain consecutive slashes");
+        }
+    }
+
+    private void validateDirectoryName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new InvalidRequestException("Directory name is required");
+        }
+
+        if (!DIRECTORY_NAME_PATTERN.matcher(name).matches()) {
+            throw new InvalidRequestException("Directory name must not contain '/'");
         }
     }
 }
