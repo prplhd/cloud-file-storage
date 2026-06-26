@@ -15,4 +15,6 @@ public interface Storage {
     StorageResource createDirectory(Long userId, ResourcePath resourcePath);
 
     List<StorageResource> getDirectoryContents(Long userId, ResourcePath resourcePath);
+
+    void deleteResource(Long userId, ResourcePath resourcePath);
 }

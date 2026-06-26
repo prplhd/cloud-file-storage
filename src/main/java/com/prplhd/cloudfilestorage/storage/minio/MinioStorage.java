@@ -10,6 +10,8 @@ import com.prplhd.cloudfilestorage.storage.Storage;
 import io.minio.*;
 import io.minio.errors.ErrorResponseException;
 import io.minio.errors.MinioException;
+import io.minio.messages.DeleteRequest;
+import io.minio.messages.DeleteResult;
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -107,26 +110,6 @@ public class MinioStorage implements Storage {
     }
 
     @Override
-    public List<StorageResource> getDirectoryContents(Long userId, ResourcePath directoryPath) {
-        if (directoryPath.getType() != ResourceType.DIRECTORY) {
-            throw new IllegalArgumentException("Resource path must point to a directory");
-        }
-
-        validateResourceExists(userId, directoryPath);
-
-        String fullPath = directoryPath.getFullPath();
-        String objectKey = resolveObjectKey(userId, fullPath);
-
-        Iterable<Result<Item>> results = minioClient.listObjects(
-                ListObjectsArgs.builder()
-                        .bucket(bucketName)
-                        .prefix(objectKey)
-                        .build());
-
-        return collectStorageResources(userId, results, fullPath);
-    }
-
-    @Override
     public StorageResource createDirectory(Long userId, ResourcePath directoryPath) {
         if (directoryPath.getType() != ResourceType.DIRECTORY) {
             throw new IllegalArgumentException("Resource path must point to a directory");
@@ -161,6 +144,36 @@ public class MinioStorage implements Storage {
         }
     }
 
+    @Override
+    public List<StorageResource> getDirectoryContents(Long userId, ResourcePath directoryPath) {
+        if (directoryPath.getType() != ResourceType.DIRECTORY) {
+            throw new IllegalArgumentException("Resource path must point to a directory");
+        }
+
+        validateResourceExists(userId, directoryPath);
+
+        String fullPath = directoryPath.getFullPath();
+        String objectKey = resolveObjectKey(userId, fullPath);
+
+        Iterable<Result<Item>> results = minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .bucket(bucketName)
+                        .prefix(objectKey)
+                        .build());
+
+        return collectStorageResources(userId, results, fullPath);
+    }
+
+    @Override
+    public void deleteResource(Long userId, ResourcePath resourcePath) {
+        validateResourceExists(userId, resourcePath);
+
+        switch (resourcePath.getType()) {
+            case FILE -> deleteFile(userId, resourcePath);
+            case DIRECTORY -> deleteDirectoryRecursively(userId, resourcePath);
+        }
+    }
+
     private void createMissingParentDirectories(Long userId, List<String> parentDirectories) {
         for (String parentDirectory : parentDirectories) {
             String objectKey = resolveObjectKey(userId, parentDirectory);
@@ -174,6 +187,7 @@ public class MinioStorage implements Storage {
                                 .extraHeaders(Map.of("If-None-Match", "*"))
                                 .build()
                 );
+
             } catch (ErrorResponseException e) {
                 if (PRECONDITION_FAILED_CODE.equals(e.errorResponse().code())) {
                     continue;
@@ -204,7 +218,7 @@ public class MinioStorage implements Storage {
         try {
             validateResourceExists(userId, parentDirectoryPath);
 
-        }  catch (ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             throw new ResourceNotFoundException("Parent directory '%s' not found".formatted(parentDirectory));
         }
     }
@@ -212,12 +226,11 @@ public class MinioStorage implements Storage {
     private List<StorageResource> collectStorageResources(Long userId, Iterable<Result<Item>> results, String fullPath) {
         try {
             List<StorageResource> resources = new ArrayList<>();
-            String userRootPrefix = USER_ROOT_PREFIX_TEMPLATE.formatted(userId);
 
             for (Result<Item> result : results) {
                 Item item = result.get();
 
-                String userRelativePath = item.objectName().substring(userRootPrefix.length());
+                String userRelativePath = getUserRelativePath(userId, item.objectName());
 
                 if (userRelativePath.equals(fullPath)) {
                     continue;
@@ -234,6 +247,93 @@ public class MinioStorage implements Storage {
         } catch (MinioException e) {
             throw new StorageException("Failed to get directory contents for path '%s'".formatted(fullPath), e);
         }
+    }
+
+    private void deleteFile(Long userId, ResourcePath resourcePath) {
+        String fullPath = resourcePath.getFullPath();
+        String objectKey = resolveObjectKey(userId, fullPath);
+
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey).build()
+            );
+
+        } catch (MinioException e) {
+            throw new StorageException("Failed to delete resource for path '%s'".formatted(fullPath), e);
+        }
+    }
+
+    private void deleteDirectoryRecursively(Long userId, ResourcePath resourcePath) {
+        String fullPath = resourcePath.getFullPath();
+        String objectKey = resolveObjectKey(userId, fullPath);
+
+        List<DeleteRequest.Object> resourcesToDelete = collectResourcesForDeletion(objectKey, fullPath);
+
+        Iterable<Result<DeleteResult.Error>> results =
+                minioClient.removeObjects(
+                        RemoveObjectsArgs.builder()
+                                .bucket(bucketName)
+                                .objects(resourcesToDelete)
+                                .build()
+                );
+
+        List<DeleteResult.Error> deleteErrors = new ArrayList<>();
+
+        try {
+            for (Result<DeleteResult.Error> result : results) {
+                deleteErrors.add(result.get());
+            }
+
+        } catch (MinioException e) {
+            throw new StorageException("Failed to delete directory '%s'".formatted(fullPath), e);
+        }
+
+        if (!deleteErrors.isEmpty()) {
+            String failedResources = deleteErrors.stream()
+                    .map(error -> getUserRelativePath(userId, error.objectName()))
+                    .collect(Collectors.joining(", "));
+
+            throw new StorageException(
+                    "Failed to delete %d resources: %s".formatted(
+                            deleteErrors.size(),
+                            failedResources
+                    )
+            );
+
+        }
+    }
+
+    private List<DeleteRequest.Object> collectResourcesForDeletion(String objectKey, String fullPath) {
+        List<DeleteRequest.Object> resourcesToDelete = new ArrayList<>();
+
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .recursive(true)
+                            .bucket(bucketName)
+                            .prefix(objectKey)
+                            .build());
+
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                DeleteRequest.Object resourceToDelete = new DeleteRequest.Object(item.objectName());
+
+                resourcesToDelete.add(resourceToDelete);
+            }
+
+        } catch (MinioException e) {
+            throw new StorageException("Failed to get directory contents for path '%s'".formatted(fullPath), e);
+        }
+
+        return resourcesToDelete;
+    }
+
+    private String getUserRelativePath(Long userId, String path) {
+        String userRootPrefix = USER_ROOT_PREFIX_TEMPLATE.formatted(userId);
+
+        return path.substring(userRootPrefix.length());
     }
 
     private String resolveObjectKey(Long userId, String fullPath) {

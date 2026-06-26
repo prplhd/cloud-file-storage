@@ -68,6 +68,12 @@ public class ResourceService {
         return resourceResponseMapper.toDto(resource);
     }
 
+    public void deleteResource(Long userId, String path) {
+        ResourcePath resourcePath = new ResourcePath(path);
+
+        storage.deleteResource(userId, resourcePath);
+    }
+
     private void validateFileName(String name) {
         if (name == null || name.isBlank()) {
             throw new InvalidRequestException("File name is required");
