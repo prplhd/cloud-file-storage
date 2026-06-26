@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,7 @@ public class MinioStorage implements Storage {
 
     private static final long DIRECTORY_SIZE = 0L;
     private static final String USER_ROOT_PREFIX_TEMPLATE = "user-%d-files/";
+    private static final String USER_ROOT_PATH = "";
     private static final String RESOURCE_NOT_FOUND_CODE = "NoSuchKey";
     private static final String PRECONDITION_FAILED_CODE = "PreconditionFailed";
 
@@ -171,6 +173,43 @@ public class MinioStorage implements Storage {
         switch (resourcePath.getType()) {
             case FILE -> deleteFile(userId, resourcePath);
             case DIRECTORY -> deleteDirectoryRecursively(userId, resourcePath);
+        }
+    }
+
+    @Override
+    public List<StorageResource> searchResources(Long userId, String query) {
+        String objectKeyRoot = USER_ROOT_PREFIX_TEMPLATE.formatted(userId);
+        String lowerCaseQuery = query.toLowerCase(Locale.ROOT);
+
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .recursive(true)
+                            .bucket(bucketName)
+                            .prefix(objectKeyRoot)
+                            .build());
+
+            List<StorageResource> resources = new ArrayList<>();
+
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                String objectName = item.objectName();
+
+                String userRelativePath = getUserRelativePath(userId, objectName);
+                ResourcePath resourcePath = new ResourcePath(userRelativePath);
+
+                String resourceName = resourcePath.getName();
+                String lowerCaseResourceName = resourceName.toLowerCase(Locale.ROOT);
+
+                if (lowerCaseResourceName.contains(lowerCaseQuery)) {
+                    resources.add(new StorageResource(resourcePath, item.size()));
+                }
+            }
+
+            return resources;
+
+        } catch (MinioException e) {
+            throw new StorageException("Failed to find resources for query '%s'".formatted(query), e);
         }
     }
 

@@ -17,4 +17,6 @@ public interface Storage {
     List<StorageResource> getDirectoryContents(Long userId, ResourcePath resourcePath);
 
     void deleteResource(Long userId, ResourcePath resourcePath);
+
+    List<StorageResource> searchResources(Long userId, String query);
 }

@@ -74,6 +74,12 @@ public class ResourceService {
         storage.deleteResource(userId, resourcePath);
     }
 
+    public List<ResourceResponseDto> searchResources(Long userId, String query) {
+        List<StorageResource> resources = storage.searchResources(userId, query);
+
+        return resources.stream().map(resourceResponseMapper::toDto).toList();
+    }
+
     private void validateFileName(String name) {
         if (name == null || name.isBlank()) {
             throw new InvalidRequestException("File name is required");
