@@ -19,4 +19,6 @@ public interface Storage {
     void deleteResource(Long userId, ResourcePath resourcePath);
 
     List<StorageResource> searchResources(Long userId, String query);
+
+    StorageResource moveResource(Long userId, ResourcePath sourceResourcePath, ResourcePath targetResourcePath);
 }

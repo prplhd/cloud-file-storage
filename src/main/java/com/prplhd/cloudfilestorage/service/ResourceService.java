@@ -1,6 +1,7 @@
 package com.prplhd.cloudfilestorage.service;
 
 import com.prplhd.cloudfilestorage.domain.ResourcePath;
+import com.prplhd.cloudfilestorage.domain.ResourceType;
 import com.prplhd.cloudfilestorage.domain.StorageResource;
 import com.prplhd.cloudfilestorage.dto.resource.ResourceResponseDto;
 import com.prplhd.cloudfilestorage.exception.InvalidRequestException;
@@ -78,6 +79,39 @@ public class ResourceService {
         List<StorageResource> resources = storage.searchResources(userId, query);
 
         return resources.stream().map(resourceResponseMapper::toDto).toList();
+    }
+
+    public ResourceResponseDto moveResource(Long userId, String sourcePath, String targetPath) {
+        ResourcePath sourceResourcePath = new ResourcePath(sourcePath);
+        ResourcePath targetResourcePath = new ResourcePath(targetPath);
+
+        validateMoveOperation(sourceResourcePath, targetResourcePath);
+
+        StorageResource resource = storage.moveResource(userId, sourceResourcePath, targetResourcePath);
+
+        return resourceResponseMapper.toDto(resource);
+    }
+
+    private void validateMoveOperation(ResourcePath sourceResourcePath, ResourcePath targetResourcePath) {
+        String sourceFullPath = sourceResourcePath.getFullPath();
+        ResourceType sourceResourceType = sourceResourcePath.getType();
+
+        String targetFullPath = targetResourcePath.getFullPath();
+        ResourceType targetResourceType = targetResourcePath.getType();
+
+
+        if (sourceResourceType != targetResourceType) {
+            throw new InvalidRequestException("Source and target paths must refer to resources of the same type");
+        }
+
+        if (sourceFullPath.equals(targetFullPath)) {
+            throw new InvalidRequestException("Source and target paths must be different");
+
+        }
+
+        if (sourceResourceType == ResourceType.DIRECTORY && targetFullPath.startsWith(sourceFullPath)) {
+            throw new InvalidRequestException("A directory cannot be moved into itself or one of its subdirectories");
+        }
     }
 
     private void validateFileName(String name) {

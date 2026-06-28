@@ -1,9 +1,6 @@
 package com.prplhd.cloudfilestorage.controller;
 
-import com.prplhd.cloudfilestorage.dto.resource.DirectoryPathRequestDto;
-import com.prplhd.cloudfilestorage.dto.resource.ResourcePathRequestDto;
-import com.prplhd.cloudfilestorage.dto.resource.ResourceResponseDto;
-import com.prplhd.cloudfilestorage.dto.resource.SearchRequestDto;
+import com.prplhd.cloudfilestorage.dto.resource.*;
 import com.prplhd.cloudfilestorage.security.UserPrincipal;
 import com.prplhd.cloudfilestorage.service.ResourceService;
 import jakarta.validation.Valid;
@@ -43,9 +40,22 @@ public class ResourceController {
         Long userId = userPrincipal.getId();
         String query = requestDto.query();
 
-        List<ResourceResponseDto> responseDtos = resourceService.searchResources(userId, query);
+        List<ResourceResponseDto> resourceResponseDtos = resourceService.searchResources(userId, query);
 
-        return ResponseEntity.ok(responseDtos);
+        return ResponseEntity.ok(resourceResponseDtos);
+    }
+
+    @PostMapping("/move")
+    public ResponseEntity<ResourceResponseDto> moveResource(@Valid @ModelAttribute MoveResourceRequestDto requestDto,
+                                                                  @AuthenticationPrincipal UserPrincipal userPrincipal)
+    {
+        Long userId = userPrincipal.getId();
+        String sourcePath = requestDto.from();
+        String targetPath = requestDto.to();
+
+        ResourceResponseDto resourceResponseDtos = resourceService.moveResource(userId, sourcePath, targetPath);
+
+        return ResponseEntity.ok(resourceResponseDtos);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -56,11 +66,11 @@ public class ResourceController {
         Long userId = userPrincipal.getId();
         String path = requestDto.path();
 
-        List<ResourceResponseDto> responseDtos = resourceService.uploadResources(userId, path, files);
+        List<ResourceResponseDto> resourceResponseDtos = resourceService.uploadResources(userId, path, files);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(responseDtos);
+                .body(resourceResponseDtos);
     }
 
     @DeleteMapping

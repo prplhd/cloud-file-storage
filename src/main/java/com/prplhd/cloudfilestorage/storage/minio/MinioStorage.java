@@ -213,6 +213,111 @@ public class MinioStorage implements Storage {
         }
     }
 
+    @Override
+    public StorageResource moveResource(Long userId, ResourcePath sourceResourcePath, ResourcePath targetResourcePath) {
+        ResourceType sourceType = sourceResourcePath.getType();
+        ResourceType targetType = targetResourcePath.getType();
+
+        if (sourceType != targetType) {
+            throw new IllegalArgumentException("Source and target resource types must match");
+        }
+
+        StorageResource sourceResource = getResourceInfo(userId, sourceResourcePath);
+
+        validateParentDirectoryExists(userId, targetResourcePath);
+        validateResourceDoesNotExist(userId, targetResourcePath);
+
+        switch (sourceType) {
+            case FILE -> moveFile(userId, sourceResourcePath, targetResourcePath);
+            case DIRECTORY -> moveDirectory(userId, sourceResourcePath, targetResourcePath);
+        }
+
+        return new StorageResource(targetResourcePath, sourceResource.getSize());
+    }
+
+    private void moveFile(Long userId, ResourcePath sourceResourcePath, ResourcePath targetResourcePath) {
+        String sourceFullPath = sourceResourcePath.getFullPath();
+        String sourceObjectKey = resolveObjectKey(userId, sourceFullPath);
+
+        String targetFullPath = targetResourcePath.getFullPath();
+        String targetObjectKey = resolveObjectKey(userId, targetFullPath);
+
+        copyObject(userId, sourceObjectKey, targetObjectKey);
+
+        deleteFile(userId, sourceResourcePath);
+    }
+
+    private void moveDirectory(Long userId, ResourcePath sourceResourcePath, ResourcePath targetResourcePath) {
+        String sourceFullPath = sourceResourcePath.getFullPath();
+        String sourcePrefix = resolveObjectKey(userId, sourceFullPath);
+
+        String targetFullPath = targetResourcePath.getFullPath();
+        String targetPrefix = resolveObjectKey(userId, targetFullPath);
+
+        Iterable<Result<Item>> sourceObjects = minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .recursive(true)
+                        .bucket(bucketName)
+                        .prefix(sourcePrefix)
+                        .build());
+
+        for (Result<Item> sourceObject : sourceObjects) {
+
+            try {
+                Item item = sourceObject.get();
+                String currentSourceKey = item.objectName();
+
+                String relativeSuffix = currentSourceKey.substring(sourcePrefix.length());
+                String currentTargetKey = targetPrefix + relativeSuffix;
+
+                copyObject(userId, currentSourceKey, currentTargetKey);
+
+            } catch (MinioException e) {
+                throw new StorageException("Failed to move resource from '%s' to '%s'".formatted(sourceFullPath, targetFullPath), e);
+            }
+        }
+
+        deleteDirectoryRecursively(userId, sourceResourcePath);
+    }
+
+    private void copyObject(Long userId, String sourceObjectKey, String targetObjectKey) {
+        try {
+            minioClient.copyObject(
+                    CopyObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(targetObjectKey)
+                            .source(
+                                    SourceObject.builder()
+                                            .bucket(bucketName)
+                                            .object(sourceObjectKey)
+                                            .build())
+                            .extraHeaders(Map.of("If-None-Match", "*"))
+                            .build());
+
+        } catch (ErrorResponseException e) {
+            if (PRECONDITION_FAILED_CODE.equals(e.errorResponse().code())) {
+                throw new ResourceAlreadyExistsException("Resource for target path '%s' already exists"
+                        .formatted(getUserRelativePath(userId, targetObjectKey))
+                );
+            }
+
+            throw new StorageException("Failed to move resource from '%s' to '%s'"
+                    .formatted(
+                            getUserRelativePath(userId, sourceObjectKey),
+                            getUserRelativePath(userId, targetObjectKey)
+                    ), e
+            );
+
+        } catch (MinioException e) {
+            throw new StorageException("Failed to move resource from '%s' to '%s'"
+                    .formatted(
+                            getUserRelativePath(userId, sourceObjectKey),
+                            getUserRelativePath(userId, targetObjectKey)
+                    ), e
+            );
+        }
+    }
+
     private void createMissingParentDirectories(Long userId, List<String> parentDirectories) {
         for (String parentDirectory : parentDirectories) {
             String objectKey = resolveObjectKey(userId, parentDirectory);
@@ -242,6 +347,18 @@ public class MinioStorage implements Storage {
 
     private void validateResourceExists(Long userId, ResourcePath resourcePath) {
         getResourceInfo(userId, resourcePath);
+    }
+
+    private void validateResourceDoesNotExist(Long userId, ResourcePath resourcePath) {
+        try {
+            getResourceInfo(userId, resourcePath);
+
+            String fullPath = resourcePath.getFullPath();
+
+            throw new ResourceAlreadyExistsException("Resource for path '%s' already exists".formatted(fullPath));
+
+        } catch (ResourceNotFoundException ignored) {
+        }
     }
 
     private void validateParentDirectoryExists(Long userId, ResourcePath resourcePath) {
