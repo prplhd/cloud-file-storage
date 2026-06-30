@@ -8,13 +8,19 @@ import com.prplhd.cloudfilestorage.exception.InvalidRequestException;
 import com.prplhd.cloudfilestorage.mapper.ResourceResponseMapper;
 import com.prplhd.cloudfilestorage.storage.Storage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ResourceService {
@@ -90,6 +96,41 @@ public class ResourceService {
         StorageResource resource = storage.moveResource(userId, sourceResourcePath, targetResourcePath);
 
         return resourceResponseMapper.toDto(resource);
+    }
+
+    public void downloadResource(Long userId, String path, OutputStream outputStream) throws IOException {
+        ResourcePath resourcePath = new ResourcePath(path);
+
+        switch (resourcePath.getType()) {
+            case FILE -> storage.streamResourceTo(userId, resourcePath, outputStream);
+
+            case DIRECTORY -> downloadDirectoryAsZip(userId, path, outputStream);
+        }
+    }
+
+    private void downloadDirectoryAsZip(Long userId, String path, OutputStream outputStream) throws IOException {
+        ResourcePath directoryPath = new ResourcePath(path);
+        int directoryPathLength = directoryPath.getFullPath().length();
+
+        ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream);
+
+        List<StorageResource> resources = storage.getDirectoryContentsRecursively(userId, directoryPath);
+
+        for (StorageResource resource : resources) {
+            String resourceFullPath = resource.getPath().getFullPath();
+            String zipEntryName = resourceFullPath.substring(directoryPathLength);
+
+            ZipEntry zipEntry = new ZipEntry(zipEntryName);
+            zipOutputStream.putNextEntry(zipEntry);
+
+            if (resource.getType() == ResourceType.FILE) {
+                storage.streamResourceTo(userId, resource.getPath(), zipOutputStream);
+            }
+
+            zipOutputStream.closeEntry();
+        }
+
+        zipOutputStream.finish();
     }
 
     private void validateMoveOperation(ResourcePath sourceResourcePath, ResourcePath targetResourcePath) {

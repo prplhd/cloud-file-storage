@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,7 +34,6 @@ public class MinioStorage implements Storage {
 
     private static final long DIRECTORY_SIZE = 0L;
     private static final String USER_ROOT_PREFIX_TEMPLATE = "user-%d-files/";
-    private static final String USER_ROOT_PATH = "";
     private static final String RESOURCE_NOT_FOUND_CODE = "NoSuchKey";
     private static final String PRECONDITION_FAILED_CODE = "PreconditionFailed";
 
@@ -148,22 +148,12 @@ public class MinioStorage implements Storage {
 
     @Override
     public List<StorageResource> getDirectoryContents(Long userId, ResourcePath directoryPath) {
-        if (directoryPath.getType() != ResourceType.DIRECTORY) {
-            throw new IllegalArgumentException("Resource path must point to a directory");
-        }
+        return getDirectoryContents(userId, directoryPath, false);
+    }
 
-        validateResourceExists(userId, directoryPath);
-
-        String fullPath = directoryPath.getFullPath();
-        String objectKey = resolveObjectKey(userId, fullPath);
-
-        Iterable<Result<Item>> results = minioClient.listObjects(
-                ListObjectsArgs.builder()
-                        .bucket(bucketName)
-                        .prefix(objectKey)
-                        .build());
-
-        return collectStorageResources(userId, results, fullPath);
+    @Override
+    public List<StorageResource> getDirectoryContentsRecursively(Long userId, ResourcePath directoryPath) {
+        return getDirectoryContents(userId, directoryPath, true);
     }
 
     @Override
@@ -233,6 +223,44 @@ public class MinioStorage implements Storage {
         }
 
         return new StorageResource(targetResourcePath, sourceResource.getSize());
+    }
+
+    @Override
+    public void streamResourceTo(Long userId, ResourcePath resourcePath, OutputStream outputStream) {
+        String fullPath = resourcePath.getFullPath();
+        String objectKey = resolveObjectKey(userId, fullPath);
+
+        try (InputStream stream = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectKey)
+                        .build())
+        ) {
+            stream.transferTo(outputStream);
+
+        } catch (MinioException | IOException e) {
+            throw new StorageException("Failed to stream resource for path '%s'".formatted(fullPath), e);
+        }
+    }
+
+    private List<StorageResource> getDirectoryContents(Long userId, ResourcePath directoryPath, boolean recursive) {
+        if (directoryPath.getType() != ResourceType.DIRECTORY) {
+            throw new IllegalArgumentException("Resource path must point to a directory");
+        }
+
+        validateResourceExists(userId, directoryPath);
+
+        String fullPath = directoryPath.getFullPath();
+        String objectKey = resolveObjectKey(userId, fullPath);
+
+        Iterable<Result<Item>> results = minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .recursive(recursive)
+                        .bucket(bucketName)
+                        .prefix(objectKey)
+                        .build());
+
+        return collectStorageResources(userId, results, fullPath);
     }
 
     private void moveFile(Long userId, ResourcePath sourceResourcePath, ResourcePath targetResourcePath) {

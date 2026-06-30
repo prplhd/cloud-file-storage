@@ -5,19 +5,22 @@ import com.prplhd.cloudfilestorage.security.UserPrincipal;
 import com.prplhd.cloudfilestorage.service.ResourceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/resource")
 @RequiredArgsConstructor
 public class ResourceController {
+
+    private static final MediaType APPLICATION_ZIP = MediaType.parseMediaType("application/zip");
+    private static final String ZIP_FILE_EXTENSION = ".zip";
 
     private final ResourceService resourceService;
 
@@ -43,6 +46,49 @@ public class ResourceController {
         List<ResourceResponseDto> resourceResponseDtos = resourceService.searchResources(userId, query);
 
         return ResponseEntity.ok(resourceResponseDtos);
+    }
+
+    @GetMapping("/download")
+    public ResponseEntity<StreamingResponseBody> downloadResource(@Valid @ModelAttribute ResourcePathRequestDto requestDto,
+                                                                  @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getId();
+        String path = requestDto.path();
+
+        ResourceResponseDto downloadedResource = resourceService.getResourceInfo(userId, path);
+
+        StreamingResponseBody responseBody = outputStream -> resourceService.downloadResource(userId, path, outputStream);
+
+        ResponseEntity.BodyBuilder bodyBuilder = ResponseEntity.ok();
+        String filename;
+        MediaType mediaType;
+
+        switch (downloadedResource.type()) {
+            case FILE -> {
+                mediaType = MediaType.APPLICATION_OCTET_STREAM;
+                bodyBuilder.contentLength(downloadedResource.size());
+                filename = downloadedResource.name();
+            }
+
+            case DIRECTORY -> {
+                mediaType = APPLICATION_ZIP;
+                filename = downloadedResource.name() + ZIP_FILE_EXTENSION;
+            }
+
+            default -> throw new IllegalStateException(
+                    "Unsupported resource type: " + downloadedResource.type()
+            );
+        }
+
+        ContentDisposition contentDisposition = ContentDisposition
+                .attachment()
+                .filename(filename, StandardCharsets.UTF_8)
+                .build();
+
+        return bodyBuilder
+                .contentType(mediaType)
+                .headers(headers -> headers.setContentDisposition(contentDisposition))
+                .body(responseBody);
     }
 
     @PostMapping("/move")
