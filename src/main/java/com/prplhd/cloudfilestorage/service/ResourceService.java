@@ -59,7 +59,6 @@ public class ResourceService {
 
     public List<ResourceResponseDto> getDirectoryContents(Long userId, String path) {
         ResourcePath resourcePath = new ResourcePath(path);
-        validateDirectoryName(resourcePath.getName());
 
         List<StorageResource> resources = storage.getDirectoryContents(userId, resourcePath);
 
@@ -166,7 +165,7 @@ public class ResourceService {
     }
 
     private void validateDirectoryName(String name) {
-        if (name == null || name.isBlank()) {
+        if (name == null) {
             throw new InvalidRequestException("Directory name is required");
         }
 

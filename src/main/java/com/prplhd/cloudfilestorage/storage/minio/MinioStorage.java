@@ -44,6 +44,10 @@ public class MinioStorage implements Storage {
 
     @Override
     public StorageResource getResourceInfo(Long userId, ResourcePath resourcePath) {
+        if (resourcePath.isRoot()) {
+            return new StorageResource(resourcePath, DIRECTORY_SIZE);
+        }
+
         String fullPath = resourcePath.getFullPath();
         String objectKey = resolveObjectKey(userId, fullPath);
 
@@ -117,6 +121,10 @@ public class MinioStorage implements Storage {
             throw new IllegalArgumentException("Resource path must point to a directory");
         }
 
+        if (directoryPath.isRoot()) {
+            throw new ResourceAlreadyExistsException("Root directory cannot be created");
+        }
+
         String fullPath = directoryPath.getFullPath();
         String objectKey = resolveObjectKey(userId, fullPath);
 
@@ -158,6 +166,10 @@ public class MinioStorage implements Storage {
 
     @Override
     public void deleteResource(Long userId, ResourcePath resourcePath) {
+        if (resourcePath.isRoot()) {
+            throw new IllegalArgumentException("Root directory cannot be deleted");
+        }
+
         validateResourceExists(userId, resourcePath);
 
         switch (resourcePath.getType()) {
@@ -212,6 +224,14 @@ public class MinioStorage implements Storage {
             throw new IllegalArgumentException("Source and target resource types must match");
         }
 
+        if (sourceResourcePath.isRoot()) {
+            throw new IllegalArgumentException("Root directory cannot be moved");
+        }
+
+        if (targetResourcePath.isRoot()) {
+            throw new IllegalArgumentException("Resource target path cannot be the root directory");
+        }
+
         StorageResource sourceResource = getResourceInfo(userId, sourceResourcePath);
 
         validateParentDirectoryExists(userId, targetResourcePath);
@@ -248,7 +268,9 @@ public class MinioStorage implements Storage {
             throw new IllegalArgumentException("Resource path must point to a directory");
         }
 
-        validateResourceExists(userId, directoryPath);
+        if (!directoryPath.isRoot()) {
+            validateResourceExists(userId, directoryPath);
+        }
 
         String fullPath = directoryPath.getFullPath();
         String objectKey = resolveObjectKey(userId, fullPath);

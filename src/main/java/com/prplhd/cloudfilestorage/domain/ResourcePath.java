@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 public class ResourcePath {
 
     private static final String SLASH = "/";
-    private static final Pattern FULL_PATH_PATTERN = Pattern.compile("^(?!/)(?!.*//).+$");
+    private static final Pattern FULL_PATH_PATTERN = Pattern.compile("^(?!/)(?!.*//).*$");
 
     private final String fullPath;
 
@@ -37,7 +37,7 @@ public class ResourcePath {
     }
 
     public ResourceType getType() {
-        if (fullPath.endsWith(SLASH)) {
+        if (fullPath.endsWith(SLASH) || fullPath.isEmpty()) {
             return ResourceType.DIRECTORY;
         }
 
@@ -65,8 +65,12 @@ public class ResourcePath {
         return parentDirectories;
     }
 
+    public boolean isRoot() {
+        return fullPath.isEmpty();
+    }
+
     private static void validateFullPath(String fullPath) {
-        if (fullPath == null || fullPath.isBlank()) {
+        if (fullPath == null) {
             throw new IllegalArgumentException("Path is required");
         }
 
